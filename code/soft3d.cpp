@@ -1,6 +1,8 @@
+#include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <math.h>
+#include <time.h>
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -35,8 +37,18 @@ struct game_offscreen_buffer
     int BytesPerPixel;
 };
 
+#define STAR_COUNT 4096
+#define STAR_SPREAD 64.0f
+struct star
+{
+    f32 X;
+    f32 Y;
+    f32 Z;
+};
+
 struct game_state
 {
+    star Stars[STAR_COUNT];
 };
 
 struct game_input
@@ -114,6 +126,17 @@ AbsoluteF32(f32 Value)
     return Result;
 }
 
+inline f32
+RandomUnitF32()
+{
+    u32 Resolution = 256;
+    u32 Random = (u32)rand() % Resolution;
+    
+    f32 Result = (f32)Random / (f32)(Resolution - 1);
+
+    return Result;
+}
+
 #pragma pack(push, 1)
 struct bitmap_header
 {
@@ -146,6 +169,50 @@ LoadBMP(char *Filename)
     }
 
     return Result;
+}
+
+internal void
+DrawPixel(game_offscreen_buffer *Buffer,
+          i32 PixelX, i32 PixelY,
+          u32 Color)
+{
+    u32 *Pixels = (u32 *)Buffer->Data;
+    Pixels[PixelY*Buffer->Width + PixelX] = Color;
+}
+
+internal void
+DrawLine(game_offscreen_buffer *Buffer,
+         f32 RealStartX, f32 RealStartY,
+         f32 RealEndX, f32 RealEndY,
+         u32 Color)
+{
+    f32 DistanceX = RealEndX - RealStartX;
+    f32 DistanceY = RealEndY - RealStartY;
+    // TODO: Use absolute function
+    f32 DistanceX_Abs = ((DistanceX > 0) ? DistanceX : -DistanceX);
+    f32 DistanceY_Abs = ((DistanceY > 0) ? DistanceY : -DistanceY);
+    f32 SteppingDistance = ((DistanceX_Abs >= DistanceY_Abs) ? DistanceX_Abs : DistanceY_Abs);
+    f32 dX = DistanceX / SteppingDistance;
+    f32 dY = DistanceY / SteppingDistance;
+
+    f32 X = RealStartX;
+    f32 Y = RealStartY;
+    u32 *Pixels = (u32 *)Buffer->Data;
+    for (i32 SteppingIndex = 0;
+         SteppingIndex < (i32)SteppingDistance;
+         ++SteppingIndex)
+    {
+        i32 RoundedX = RoundF32ToI32(X);
+        i32 RoundedY = RoundF32ToI32(Y);
+        if (RoundedX >= 0 && RoundedX < Buffer->Width &&
+            RoundedY >= 0 && RoundedY < Buffer->Height)
+        {
+            Pixels[RoundedY * Buffer->Width + RoundedX] = Color;
+        }
+
+        X += dX;
+        Y += dY;
+    }
 }
 
 internal void
@@ -190,44 +257,29 @@ DrawRectangle(game_offscreen_buffer *Buffer,
     }
 }
 
-internal void
-DrawLine(game_offscreen_buffer *Buffer,
-         f32 RealStartX, f32 RealStartY,
-         f32 RealEndX, f32 RealEndY,
-         u32 Color)
+internal star
+PlaceStarInRandomLocation(f32 StarSpread)
 {
-    f32 DistanceX = RealEndX - RealStartX;
-    f32 DistanceY = RealEndY - RealStartY;
-    // TODO: Use absolute function
-    f32 DistanceX_Abs = ((DistanceX > 0) ? DistanceX : -DistanceX);
-    f32 DistanceY_Abs = ((DistanceY > 0) ? DistanceY : -DistanceY);
-    f32 SteppingDistance = ((DistanceX_Abs >= DistanceY_Abs) ? DistanceX_Abs : DistanceY_Abs);
-    f32 dX = DistanceX / SteppingDistance;
-    f32 dY = DistanceY / SteppingDistance;
+    star Result = {0};
+    
+    Result.X = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
+    Result.Y = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
+    Result.Z = ((f32)RandomUnitF32() + 0.00001f)*StarSpread;
 
-    f32 X = RealStartX;
-    f32 Y = RealStartY;
-    u32 *Pixels = (u32 *)Buffer->Data;
-    for (i32 SteppingIndex = 0;
-         SteppingIndex < (i32)SteppingDistance;
-         ++SteppingIndex)
-    {
-        i32 RoundedX = RoundF32ToI32(X);
-        i32 RoundedY = RoundF32ToI32(Y);
-        if (RoundedX >= 0 && RoundedX < Buffer->Width &&
-            RoundedY >= 0 && RoundedY < Buffer->Height)
-        {
-            Pixels[RoundedY * Buffer->Width + RoundedX] = Color;
-        }
-
-        X += dX;
-        Y += dY;
-    }
+    return Result;
 }
 
 internal void
 GameStateInit(game_state *State)
 {
+    srand((u32)time(0));
+
+    for (i32 StarIndex = 0;
+         StarIndex < STAR_COUNT;
+         ++StarIndex)
+    {
+        State->Stars[StarIndex] = PlaceStarInRandomLocation(STAR_SPREAD);
+    }
 }
 
 internal void
@@ -248,7 +300,40 @@ ProcessInput(game_state *State, game_input *Input)
 internal void
 GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer *Buffer)
 {
-    DrawRectangle(Buffer, 0.0f, 0.0f, (f32)Buffer->Width, (f32)Buffer->Height, 0xFF0000FF, 0xFF0000FF);
-
     ProcessInput(State, Input);
+    
+    DrawRectangle(Buffer, 0.0f, 0.0f, (f32)Buffer->Width, (f32)Buffer->Height, 0xFF000000, 0xFF000000);
+    
+    f32 StarSpeed = 20.0f;
+
+    f32 BufferCenterX = (f32)Buffer->Width/2.0f;
+    f32 BufferCenterY = (f32)Buffer->Height/2.0f;
+
+    for (i32 StarIndex = 0;
+         StarIndex < STAR_COUNT;
+         ++StarIndex)
+    {
+        star * CurrentStar = &State->Stars[StarIndex];
+        CurrentStar->Z -= Input->SecondsPerFrame*StarSpeed;
+
+        if (CurrentStar->Z <= 0)
+        {
+            *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
+        }
+
+        f32 DistanceScaledStarX = CurrentStar->X / CurrentStar->Z;
+        f32 DistanceScaledStarY = CurrentStar->Y / CurrentStar->Z;
+        i32 DrawX = TruncateF32ToI32(DistanceScaledStarX*BufferCenterX + BufferCenterX);
+        i32 DrawY = TruncateF32ToI32(DistanceScaledStarY*BufferCenterY + BufferCenterY);
+
+        if (DrawX >= 0 && DrawX < Buffer->Width &&
+            DrawY >= 0 && DrawY < Buffer->Height)
+        {
+            DrawPixel(Buffer, DrawX, DrawY, 0xFFFFFFFF);
+        }
+        else
+        {
+            *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
+        }
+    }
 }
