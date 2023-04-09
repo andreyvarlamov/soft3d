@@ -308,6 +308,8 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
 
     f32 BufferCenterX = (f32)Buffer->Width/2.0f;
     f32 BufferCenterY = (f32)Buffer->Height/2.0f;
+    f32 FOV = Pi32/2.0f;
+    f32 HalfFOVTan = tanf(FOV/2.0f);
 
     for (i32 StarIndex = 0;
          StarIndex < STAR_COUNT;
@@ -321,10 +323,10 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
             *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
         }
 
-        f32 DistanceScaledStarX = CurrentStar->X / CurrentStar->Z;
-        f32 DistanceScaledStarY = CurrentStar->Y / CurrentStar->Z;
-        i32 DrawX = TruncateF32ToI32(DistanceScaledStarX*BufferCenterX + BufferCenterX);
-        i32 DrawY = TruncateF32ToI32(DistanceScaledStarY*BufferCenterY + BufferCenterY);
+        f32 PerspectiveStarX = CurrentStar->X / (HalfFOVTan*CurrentStar->Z);
+        f32 PerspectiveStarY = CurrentStar->Y / (HalfFOVTan*CurrentStar->Z);
+        i32 DrawX = TruncateF32ToI32(PerspectiveStarX*BufferCenterX + BufferCenterX);
+        i32 DrawY = TruncateF32ToI32(PerspectiveStarY*BufferCenterY + BufferCenterY);
 
         if (DrawX >= 0 && DrawX < Buffer->Width &&
             DrawY >= 0 && DrawY < Buffer->Height)
