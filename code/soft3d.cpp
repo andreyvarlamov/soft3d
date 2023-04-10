@@ -244,11 +244,43 @@ ScanConvertLine(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMaxY, i32 Which
 }
 
 internal void
-ScanConvertTriangle(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMidY, vertex VertexMaxY, i32 Handedness)
+ScanConvertSortedTriangle(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMidY, vertex VertexMaxY, i32 Handedness)
 {
     ScanConvertLine(Scanbuffer, VertexMinY, VertexMaxY, 0 + Handedness);
     ScanConvertLine(Scanbuffer, VertexMinY, VertexMidY, 1 - Handedness);
     ScanConvertLine(Scanbuffer, VertexMidY, VertexMaxY, 1 - Handedness);
+}
+
+internal void
+DrawTriangle(game_offscreen_buffer *Buffer, i32 *Scanbuffer, vertex V1, vertex V2, vertex V3)
+{
+    vertex VertexMinY = V1;
+    vertex VertexMidY = V2;
+    vertex VertexMaxY = V3;
+
+    if (VertexMaxY.Y < VertexMidY.Y)
+    {
+        vertex Temp = VertexMaxY;
+        VertexMaxY = VertexMidY;
+        VertexMidY = Temp;
+    }
+    if (VertexMidY.Y < VertexMinY.Y)
+    {
+        vertex Temp = VertexMidY;
+        VertexMidY = VertexMinY;
+        VertexMinY = Temp;
+    }
+    if (VertexMaxY.Y < VertexMinY.Y)
+    {
+        vertex Temp = VertexMaxY;
+        VertexMaxY = VertexMinY;
+        VertexMinY = Temp;
+    }
+
+    i32 Handedness = ((VertexMidY.X > VertexMaxY.X) ? 0 : 1);
+    
+    ScanConvertSortedTriangle(Scanbuffer, VertexMinY, VertexMidY, VertexMaxY, Handedness);
+    DrawScanBufferRows(Buffer, Scanbuffer, TruncateF32ToI32(VertexMinY.Y), TruncateF32ToI32(VertexMaxY.Y));
 }
 
 internal void
@@ -260,17 +292,15 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
 
     int Scanbuffer[1800] = {0};
 
-    vertex VertexMinY;
-    VertexMinY.X = 100.0f;
-    VertexMinY.Y = 100.0f;
-    vertex VertexMidY;
-    VertexMidY.X = 150.0f;
-    VertexMidY.Y = 200.0f;
-    vertex VertexMaxY;
-    VertexMaxY.X = 80.0f;
-    VertexMaxY.Y = 300.0f;
+    vertex V1;
+    V1.X = 100.0f;
+    V1.Y = 300.0f;
+    vertex V2;
+    V2.X = 150.0f;
+    V2.Y = 200.0f;
+    vertex V3;
+    V3.X = 80.0f;
+    V3.Y = 100.0f;
 
-    ScanConvertTriangle(Scanbuffer, VertexMinY, VertexMidY, VertexMaxY, 0);
-    
-    DrawScanBufferRows(Buffer, Scanbuffer, TruncateF32ToI32(VertexMinY.Y), TruncateF32ToI32(VertexMaxY.Y));
+    DrawTriangle(Buffer, Scanbuffer, V1, V2, V3);
 }
