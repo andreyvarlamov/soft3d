@@ -146,25 +146,21 @@ ProcessInput(game_state *State, game_input *Input)
 }
 
 internal void
-GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer *Buffer)
+UpdateAndDrawStars(game_offscreen_buffer *Buffer, game_state *State, f32 SecondsPerFrame)
 {
-    ProcessInput(State, Input);
-    
-    DrawRectangle(Buffer, 0.0f, 0.0f, (f32)Buffer->Width, (f32)Buffer->Height, 0xFF000000, 0xFF000000);
-    
     f32 StarSpeed = 20.0f;
-
+    
     f32 BufferCenterX = (f32)Buffer->Width/2.0f;
     f32 BufferCenterY = (f32)Buffer->Height/2.0f;
     f32 FOV = Pi32/2.0f;
     f32 HalfFOVTan = tanf(FOV/2.0f);
-
+    
     for (i32 StarIndex = 0;
          StarIndex < STAR_COUNT;
          ++StarIndex)
     {
         star * CurrentStar = &State->Stars[StarIndex];
-        CurrentStar->Z -= Input->SecondsPerFrame*StarSpeed;
+        CurrentStar->Z -= SecondsPerFrame*StarSpeed;
 
         if (CurrentStar->Z <= 0)
         {
@@ -186,4 +182,95 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
             *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
         }
     }
+}
+
+internal void
+FillScanBufferRow(i32 *Scanbuffer, i32 Row, i32 MinX, i32 MaxX)
+{
+    Assert(Row < 900);
+    
+    Scanbuffer[Row*2] = MinX;
+    Scanbuffer[Row*2 + 1] = MaxX;
+}
+
+internal void
+DrawScanBufferRows(game_offscreen_buffer *Buffer, i32 *Scanbuffer, i32 MinY, i32 MaxY)
+{
+    Assert(MinY > 0 && MinY < 900);
+    Assert(MaxY > 0 && MaxY < 900);
+    
+    for (i32 Row = MinY;
+         Row < MaxY;
+         ++Row)
+    {
+        i32 MinX = Scanbuffer[Row*2];
+        i32 MaxX = Scanbuffer[Row*2 + 1];
+        
+        for (i32 Column = MinX;
+             Column < MaxX;
+             ++Column)
+        {
+            DrawPixel(Buffer, Column, Row, 0xFFFFFFFF);
+        }
+    }
+}
+
+internal void
+ScanConvertLine(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMaxY, i32 WhichSide)
+{
+    i32 StartY = TruncateF32ToI32(VertexMinY.Y);
+    i32 EndY = TruncateF32ToI32(VertexMaxY.Y);
+    i32 StartX = TruncateF32ToI32(VertexMinY.X);
+    i32 EndX = TruncateF32ToI32(VertexMaxY.X);
+
+    i32 dY = EndY - StartY;
+    i32 dX = EndX - StartX;
+
+    if (dY <= 0)
+    {
+        return;
+    }
+
+    f32 StepX = (f32)dX/(f32)dY;
+    f32 CursorX = (f32)StartX;
+
+    for (i32 Row = StartY;
+         Row < EndY;
+         ++Row)
+    {
+        Scanbuffer[Row*2 + WhichSide] = (i32)CursorX;
+        CursorX += StepX;
+    }
+}
+
+internal void
+ScanConvertTriangle(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMidY, vertex VertexMaxY, i32 Handedness)
+{
+    ScanConvertLine(Scanbuffer, VertexMinY, VertexMaxY, 0 + Handedness);
+    ScanConvertLine(Scanbuffer, VertexMinY, VertexMidY, 1 - Handedness);
+    ScanConvertLine(Scanbuffer, VertexMidY, VertexMaxY, 1 - Handedness);
+}
+
+internal void
+GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer *Buffer)
+{
+    ProcessInput(State, Input);
+    
+    DrawRectangle(Buffer, 0.0f, 0.0f, (f32)Buffer->Width, (f32)Buffer->Height, 0xFF000000, 0xFF000000);
+
+    int Scanbuffer[1800] = {0};
+
+    vertex VertexMinY;
+    VertexMinY.X = 100.0f;
+    VertexMinY.Y = 100.0f;
+    vertex VertexMidY;
+    VertexMidY.X = 150.0f;
+    VertexMidY.Y = 200.0f;
+    vertex VertexMaxY;
+    VertexMaxY.X = 80.0f;
+    VertexMaxY.Y = 300.0f;
+
+    ScanConvertTriangle(Scanbuffer, VertexMinY, VertexMidY, VertexMaxY, 0);
+    
+    DrawScanBufferRows(Buffer, Scanbuffer, TruncateF32ToI32(VertexMinY.Y), TruncateF32ToI32(VertexMaxY.Y));
 }

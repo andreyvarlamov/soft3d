@@ -39,18 +39,6 @@ struct game_offscreen_buffer
     i32 BytesPerPixel;
 };
 
-struct star
-{
-    f32 X;
-    f32 Y;
-    f32 Z;
-};
-
-struct game_state
-{
-    star Stars[STAR_COUNT];
-};
-
 struct game_input
 {
     f32 SecondsPerFrame;
@@ -102,6 +90,24 @@ struct bitmap_header
     u16 BitsPerPixel;
 };
 #pragma pack(pop)
+
+struct star
+{
+    f32 X;
+    f32 Y;
+    f32 Z;
+};
+
+struct vertex
+{
+    f32 X;
+    f32 Y;
+};
+
+struct game_state
+{
+    star Stars[STAR_COUNT];
+};
 
 internal void
 DEBUGPrintString(const char *Format, ...);
