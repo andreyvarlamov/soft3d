@@ -145,6 +145,74 @@ ProcessInput(game_state *State, game_input *Input)
     // }
 }
 
+struct vec4_f32
+{
+    f32 X;
+    f32 Y;
+    f32 Z;
+    f32 W;
+};
+
+struct mat44_f32
+{
+    f32 Components[4][4];
+};
+
+internal mat44_f32
+GetIdentityMatrix()
+{
+    mat44_f32 Result = {0};
+
+    Result.Components[0][0] = 1.0f;
+    Result.Components[1][1] = 1.0f;
+    Result.Components[2][2] = 1.0f;
+    Result.Components[3][3] = 1.0f;
+
+    return Result;
+}
+
+internal mat44_f32
+GetTranslationMatrix(f32 X, f32 Y, f32 Z)
+{
+    mat44_f32 Result = {0};
+
+    Result.Components[0][0] = 1.0f;
+    Result.Components[1][1] = 1.0f;
+    Result.Components[2][2] = 1.0f;
+    Result.Components[3][3] = 1.0f;
+
+    Result.Components[0][3] = X;
+    Result.Components[1][3] = Y;
+    Result.Components[2][3] = Z;
+
+    return Result;
+}
+
+internal vec4_f32
+TransformVec4F32(mat44_f32 Transform, vec4_f32 Vector)
+{
+    vec4_f32 Result = {0};
+
+    Result.X = (Transform.Components[0][0]*Vector.X +
+                Transform.Components[0][1]*Vector.Y +
+                Transform.Components[0][2]*Vector.Z +
+                Transform.Components[0][3]*Vector.W);
+    Result.Y = (Transform.Components[1][0]*Vector.X +
+                Transform.Components[1][1]*Vector.Y +
+                Transform.Components[1][2]*Vector.Z +
+                Transform.Components[1][3]*Vector.W);
+    Result.Z = (Transform.Components[2][0]*Vector.X +
+                Transform.Components[2][1]*Vector.Y +
+                Transform.Components[2][2]*Vector.Z +
+                Transform.Components[2][3]*Vector.W);
+    Result.W = (Transform.Components[3][0]*Vector.X +
+                Transform.Components[3][1]*Vector.Y +
+                Transform.Components[3][2]*Vector.Z +
+                Transform.Components[3][3]*Vector.W);
+
+    return Result;
+}
+
 internal void
 UpdateAndDrawStars(game_offscreen_buffer *Buffer, game_state *State, f32 SecondsPerFrame)
 {
