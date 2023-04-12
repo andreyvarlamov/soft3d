@@ -166,6 +166,7 @@ GetIdentityMatrix()
     Result.Components[0][0] = 1.0f;
     Result.Components[1][1] = 1.0f;
     Result.Components[2][2] = 1.0f;
+    
     Result.Components[3][3] = 1.0f;
 
     return Result;
@@ -184,6 +185,73 @@ GetTranslationMatrix(f32 X, f32 Y, f32 Z)
     Result.Components[0][3] = X;
     Result.Components[1][3] = Y;
     Result.Components[2][3] = Z;
+
+    return Result;
+}
+
+internal mat44_f32
+GetScaleMatrix(f32 X, f32 Y, f32 Z)
+{
+    mat44_f32 Result = {0};
+
+    Result.Components[0][0] = X;
+    Result.Components[1][1] = Y;
+    Result.Components[2][2] = Z;
+
+    Result.Components[3][3] = 1.0f;
+
+    return Result;
+}
+
+/*
+         |  1  0  0 |
+    X  = |  0  A -B |
+         |  0  B  A |
+
+         |  C  0  D |
+    Y  = |  0  1  0 |
+         | -D  0  C |
+
+         |  E -F  0 |
+    Z  = |  F  E  0 |
+         |  0  0  1 |
+
+    M  = X . Y . Z
+
+         |  CE      -CF       D   0 |
+    M  = |  BDE+AF  -BDF+AE  -BC  0 |
+         | -ADE+BF   ADF+BE   AC  0 |
+         |  0        0        0   1 |
+
+    where A,B are the cosine and sine of the X-axis rotation axis,
+          C,D are the cosine and sine of the Y-axis rotation axis,
+          E,F are the cosine and sine of the Z-axis rotation axis.
+ */
+internal mat44_f32
+GetRotationMatrix(f32 AngleX, f32 AngleY, f32 AngleZ)
+{
+    mat44_f32 Result = {0};
+    
+    f32 CosX = cosf(AngleX);
+    f32 SinX = sinf(AngleX);
+    f32 CosY = cosf(AngleY);
+    f32 SinY = sinf(AngleY);
+    f32 CosZ = cosf(AngleZ);
+    f32 SinZ = sinf(AngleZ);
+
+    Result.Components[0][0] =  CosY*CosZ;
+    Result.Components[0][1] = -CosY*SinZ;
+    Result.Components[0][2] =  SinY;
+
+    Result.Components[1][0] =  SinX*SinY*CosZ + CosX*SinZ;
+    Result.Components[1][1] = -SinX*SinY*SinZ + CosX*CosZ;
+    Result.Components[1][2] = -SinX*CosY;
+
+    Result.Components[2][0] = -CosX*SinY*CosZ + SinX*SinZ;
+    Result.Components[2][1] =  CosX*SinY*SinZ + SinX*CosZ;
+    Result.Components[2][2] =  CosX*CosY;
+
+    Result.Components[3][3] = 1;
 
     return Result;
 }
