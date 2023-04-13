@@ -173,18 +173,45 @@ GetIdentityMatrix()
 }
 
 internal mat44_f32
-GetTranslationMatrix(f32 X, f32 Y, f32 Z)
+GetScreenSpaceTransform()
 {
     mat44_f32 Result = {0};
 
     Result.Components[0][0] = 1.0f;
     Result.Components[1][1] = 1.0f;
     Result.Components[2][2] = 1.0f;
+    
     Result.Components[3][3] = 1.0f;
+
+    return Result;
+}
+    
+internal mat44_f32
+GetTranslationMatrix(f32 X, f32 Y, f32 Z)
+{
+    mat44_f32 Result = GetIdentityMatrix();;
 
     Result.Components[0][3] = X;
     Result.Components[1][3] = Y;
     Result.Components[2][3] = Z;
+
+    return Result;
+}
+
+internal mat44_f32
+GetScreenSpaceTransform(f32 HalfWidth, f32 HalfHeight)
+{
+    mat44_f32 Result = {0};
+
+    Result.Components[0][0] = HalfWidth; // Scale by HalfWidth
+    Result.Components[0][3] = HalfWidth; // Offset by HalfWidth 
+    Result.Components[1][1] = -HalfHeight;
+    Result.Components[1][3] = HalfHeight;
+    // --> (0.0f,  0.0f) -> (HalfWidth, HalfHeight)
+    //     (1.0f, -1.0f) -> (Width, 0)
+    
+    Result.Components[2][2] = 1.0f;
+    Result.Components[3][3] = 1.0f;
 
     return Result;
 }
@@ -281,6 +308,19 @@ TransformVec4F32(mat44_f32 Transform, vec4_f32 Vector)
     return Result;
 }
 
+internal vec4_f32
+PerspectiveDivideVec4F32(vec4_f32 Vector)
+{
+    vec4_f32 Result;
+
+    Result.X = Vector.X/Vector.W;
+    Result.Y = Vector.Y/Vector.W;
+    Result.Z = Vector.Z/Vector.W;
+    Result.W = Vector.W;
+
+    return Result;
+}
+
 internal void
 UpdateAndDrawStars(game_offscreen_buffer *Buffer, game_state *State, f32 SecondsPerFrame)
 {
@@ -332,8 +372,8 @@ FillScanBufferRow(i32 *Scanbuffer, i32 Row, i32 MinX, i32 MaxX)
 internal void
 DrawScanBufferRows(game_offscreen_buffer *Buffer, i32 *Scanbuffer, i32 MinY, i32 MaxY)
 {
-    Assert(MinY > 0 && MinY < 900);
-    Assert(MaxY > 0 && MaxY < 900);
+    Assert(MinY >= 0 && MinY < 900);
+    Assert(MaxY >= 0 && MaxY < 900);
     
     for (i32 Row = MinY;
          Row < MaxY;
@@ -352,7 +392,7 @@ DrawScanBufferRows(game_offscreen_buffer *Buffer, i32 *Scanbuffer, i32 MinY, i32
 }
 
 internal void
-ScanConvertLine(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMaxY, i32 WhichSide)
+ScanConvertLine(i32 *Scanbuffer, vec4_f32 VertexMinY, vec4_f32 VertexMaxY, i32 WhichSide)
 {
     i32 StartY = TruncateF32ToI32(VertexMinY.Y);
     i32 EndY = TruncateF32ToI32(VertexMaxY.Y);
@@ -380,7 +420,7 @@ ScanConvertLine(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMaxY, i32 Which
 }
 
 internal void
-ScanConvertSortedTriangle(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMidY, vertex VertexMaxY, i32 Handedness)
+ScanConvertSortedTriangle(i32 *Scanbuffer, vec4_f32 VertexMinY, vec4_f32 VertexMidY, vec4_f32 VertexMaxY, i32 Handedness)
 {
     ScanConvertLine(Scanbuffer, VertexMinY, VertexMaxY, 0 + Handedness);
     ScanConvertLine(Scanbuffer, VertexMinY, VertexMidY, 1 - Handedness);
@@ -388,27 +428,33 @@ ScanConvertSortedTriangle(i32 *Scanbuffer, vertex VertexMinY, vertex VertexMidY,
 }
 
 internal void
-DrawTriangle(game_offscreen_buffer *Buffer, i32 *Scanbuffer, vertex V1, vertex V2, vertex V3)
+DrawTriangle(game_offscreen_buffer *Buffer, i32 *Scanbuffer, vec4_f32 Vertex1, vec4_f32 Vertex2, vec4_f32 Vertex3)
 {
-    vertex VertexMinY = V1;
-    vertex VertexMidY = V2;
-    vertex VertexMaxY = V3;
+    mat44_f32 ScreenSpaceTransform = GetScreenSpaceTransform((f32)Buffer->Width/2.0f, (f32)Buffer->Height/2.0f);
+
+    vec4_f32 ScreenSpaceVertex1 = TransformVec4F32(ScreenSpaceTransform, Vertex1);
+    vec4_f32 ScreenSpaceVertex2 = TransformVec4F32(ScreenSpaceTransform, Vertex2);
+    vec4_f32 ScreenSpaceVertex3 = TransformVec4F32(ScreenSpaceTransform, Vertex3);
+
+    vec4_f32 VertexMinY = PerspectiveDivideVec4F32(ScreenSpaceVertex1);
+    vec4_f32 VertexMidY = PerspectiveDivideVec4F32(ScreenSpaceVertex2);
+    vec4_f32 VertexMaxY = PerspectiveDivideVec4F32(ScreenSpaceVertex3);
 
     if (VertexMaxY.Y < VertexMidY.Y)
     {
-        vertex Temp = VertexMaxY;
+        vec4_f32 Temp = VertexMaxY;
         VertexMaxY = VertexMidY;
         VertexMidY = Temp;
     }
     if (VertexMidY.Y < VertexMinY.Y)
     {
-        vertex Temp = VertexMidY;
+        vec4_f32 Temp = VertexMidY;
         VertexMidY = VertexMinY;
         VertexMinY = Temp;
     }
     if (VertexMaxY.Y < VertexMinY.Y)
     {
-        vertex Temp = VertexMaxY;
+        vec4_f32 Temp = VertexMaxY;
         VertexMaxY = VertexMinY;
         VertexMinY = Temp;
     }
@@ -428,15 +474,9 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
 
     int Scanbuffer[1800] = {0};
 
-    vertex V1;
-    V1.X = 100.0f;
-    V1.Y = 300.0f;
-    vertex V2;
-    V2.X = 150.0f;
-    V2.Y = 200.0f;
-    vertex V3;
-    V3.X = 80.0f;
-    V3.Y = 100.0f;
+    vec4_f32 Vertex1 = { -1.0f, -1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex2 = {  0.0f,  1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex3 = { -1.0f,  1.0f, 1.0f, 1.0f };
 
-    DrawTriangle(Buffer, Scanbuffer, V1, V2, V3);
+    DrawTriangle(Buffer, Scanbuffer, Vertex1, Vertex2, Vertex3);
 }
