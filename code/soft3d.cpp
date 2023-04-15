@@ -283,6 +283,25 @@ GetRotationMatrix(f32 AngleX, f32 AngleY, f32 AngleZ)
     return Result;
 }
 
+internal mat44_f32
+GetProjectionMatrix(f32 FOV, f32 Width, f32 Height, f32 NearZ, f32 FarZ)
+{
+    mat44_f32 Result = {0};
+
+    f32 HalfFOVTan = TanF32(FOV/2.0f);
+    f32 AspectRatio = Width/Height;
+
+    Result.Components[0][0] = 1 / (AspectRatio*HalfFOVTan);
+    Result.Components[1][1] = 1 / HalfFOVTan;
+
+    Result.Components[2][2] = (-NearZ-FarZ) / (NearZ-FarZ);
+    Result.Components[2][3] = (2.0f*FarZ*NearZ) / (NearZ-FarZ);
+
+    Result.Components[3][2] = 1;
+
+    return Result;
+}
+
 internal vec4_f32
 TransformVec4F32(mat44_f32 Transform, vec4_f32 Vector)
 {
@@ -430,15 +449,16 @@ ScanConvertSortedTriangle(i32 *Scanbuffer, vec4_f32 VertexMinY, vec4_f32 VertexM
 internal void
 DrawTriangle(game_offscreen_buffer *Buffer, i32 *Scanbuffer, vec4_f32 Vertex1, vec4_f32 Vertex2, vec4_f32 Vertex3)
 {
+    mat44_f32 ProjectionTransform = GetProjectionMatrix(90.0f, (f32)Buffer->Width, (f32)Buffer->Height, 1.0f, 1000.0f);
     mat44_f32 ScreenSpaceTransform = GetScreenSpaceTransform((f32)Buffer->Width/2.0f, (f32)Buffer->Height/2.0f);
 
-    vec4_f32 ScreenSpaceVertex1 = TransformVec4F32(ScreenSpaceTransform, Vertex1);
-    vec4_f32 ScreenSpaceVertex2 = TransformVec4F32(ScreenSpaceTransform, Vertex2);
-    vec4_f32 ScreenSpaceVertex3 = TransformVec4F32(ScreenSpaceTransform, Vertex3);
+    vec4_f32 ProjectedVertex1 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex1));
+    vec4_f32 ProjectedVertex2 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex2));
+    vec4_f32 ProjectedVertex3 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex3));
 
-    vec4_f32 VertexMinY = PerspectiveDivideVec4F32(ScreenSpaceVertex1);
-    vec4_f32 VertexMidY = PerspectiveDivideVec4F32(ScreenSpaceVertex2);
-    vec4_f32 VertexMaxY = PerspectiveDivideVec4F32(ScreenSpaceVertex3);
+    vec4_f32 VertexMinY = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex1);
+    vec4_f32 VertexMidY = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex2);
+    vec4_f32 VertexMaxY = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex3);
 
     if (VertexMaxY.Y < VertexMidY.Y)
     {
@@ -474,9 +494,9 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
 
     int Scanbuffer[1800] = {0};
 
-    vec4_f32 Vertex1 = { -1.0f, -1.0f, 1.0f, 1.0f };
-    vec4_f32 Vertex2 = {  0.0f,  1.0f, 1.0f, 1.0f };
-    vec4_f32 Vertex3 = { -1.0f,  1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex1 = {  0.0f, -1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex2 = { -1.0f,  1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex3 = {  1.0f,  1.0f, 1.0f, 1.0f };
 
     DrawTriangle(Buffer, Scanbuffer, Vertex1, Vertex2, Vertex3);
 }
