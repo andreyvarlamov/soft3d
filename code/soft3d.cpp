@@ -104,6 +104,126 @@ DrawRectangle(game_offscreen_buffer *Buffer,
         Row += Buffer->Pitch;
     }
 }
+ 
+internal void
+DrawBetweenVerticalLines(game_offscreen_buffer *Buffer,
+                 vec4_f32 StartLineA, vec4_f32 EndLineA,
+                 vec4_f32 StartLineB, vec4_f32 EndLineB,
+                 i32 RowStart, i32 RowEnd)
+{
+    Assert (RowEnd >= RowStart);
+    // NOTE: Make sure neither of the lines is horizontal
+    Assert(!AreEqualF32(StartLineA.Y, EndLineA.Y));
+    Assert(!AreEqualF32(StartLineB.Y, EndLineB.Y));
+
+    bool32 IsVerticalA = AreEqualF32(StartLineA.X, EndLineA.X);
+    f32 InvSlopeA = (IsVerticalA ?
+                     0.0f :
+                     ((EndLineA.X - StartLineA.X) / (EndLineA.Y - StartLineA.Y)));
+    f32 VerticalOffsetA = (IsVerticalA ?
+                           0.0f :
+                           EndLineA.Y - EndLineA.X/InvSlopeA);
+    f32 HorizontalOffsetA = (IsVerticalA ? StartLineA.X : 0.0f);
+
+    bool32 IsVerticalB = AreEqualF32(StartLineB.X, EndLineB.X);
+    f32 InvSlopeB = (IsVerticalB ?
+                     0.0f :
+                     ((EndLineB.X - StartLineB.X) / (EndLineB.Y - StartLineB.Y)));
+    f32 VerticalOffsetB = (IsVerticalB ?
+                           0.0f :
+                           EndLineB.Y - EndLineB.X/InvSlopeB);
+    f32 HorizontalOffsetB = (IsVerticalB ? StartLineB.X : 0.0f);
+    
+
+    for (i32 RowIndex = RowStart;
+         RowIndex < RowEnd;
+         ++RowIndex)
+    {
+        
+        i32 PointA = TruncateF32ToI32(GetLineXForY((f32)RowIndex, InvSlopeA, VerticalOffsetA, HorizontalOffsetA));
+        i32 PointB = TruncateF32ToI32(GetLineXForY((f32)RowIndex, InvSlopeB, VerticalOffsetB, HorizontalOffsetB));
+
+        i32 LeftBoundary;
+        i32 RightBoundary;
+
+        if (PointA < PointB)
+        {
+            LeftBoundary = PointA;
+            RightBoundary = PointB;
+        }
+        else
+        {
+            LeftBoundary = PointB;
+            RightBoundary = PointA;
+        }
+
+        for (i32 ColumnIndex = LeftBoundary;
+             ColumnIndex <= RightBoundary;
+             ++ColumnIndex)
+        {
+            DrawPixel(Buffer, ColumnIndex, RowIndex, 0xFFFFFFFF);
+        }
+    }
+}
+
+internal void
+DrawScreenSpaceTriangle(game_offscreen_buffer *Buffer, vec4_f32 VertexMinY, vec4_f32 VertexMidY, vec4_f32 VertexMaxY)
+{
+    if (VertexMinY.Y > VertexMidY.Y)
+    {
+        vec4_f32 Temp = VertexMinY;
+        VertexMinY = VertexMidY;
+        VertexMidY = Temp;
+    }
+    if (VertexMidY.Y > VertexMaxY.Y)
+    {
+        vec4_f32 Temp = VertexMidY;
+        VertexMidY = VertexMaxY;
+        VertexMaxY = Temp;
+    }
+    if (VertexMinY.Y > VertexMidY.Y)
+    {
+        vec4_f32 Temp = VertexMinY;
+        VertexMinY = VertexMidY;
+        VertexMidY = Temp;
+    }
+
+    i32 TriangleTop = TruncateF32ToI32(VertexMinY.Y);
+    i32 TriangleMid = TruncateF32ToI32(VertexMidY.Y);
+    i32 TriangleBot = TruncateF32ToI32(VertexMaxY.Y);
+    
+    if (TriangleTop < TriangleMid)
+    {
+        DrawBetweenVerticalLines(Buffer, VertexMinY, VertexMidY, VertexMinY, VertexMaxY, TriangleTop, TriangleMid);
+    }
+    
+    if (TriangleMid < TriangleBot)
+    {
+        DrawBetweenVerticalLines(Buffer, VertexMidY, VertexMaxY, VertexMinY, VertexMaxY, TriangleMid, TriangleBot);
+    }
+
+    // DEBUG Points Draw
+    DrawRectangle(Buffer, VertexMinY.X-3.0f, VertexMinY.Y-3.0f, VertexMinY.X+3.0f, VertexMinY.Y+3.0f, 0xFFFF5555, 0xFFFF5555);
+    DrawRectangle(Buffer, VertexMidY.X-3.0f, VertexMidY.Y-3.0f, VertexMidY.X+3.0f, VertexMidY.Y+3.0f, 0xFF55FF55, 0xFF55FF55);
+    DrawRectangle(Buffer, VertexMaxY.X-3.0f, VertexMaxY.Y-3.0f, VertexMaxY.X+3.0f, VertexMaxY.Y+3.0f, 0xFF5555FF, 0xFF5555FF);
+}
+
+internal void
+Draw3DTriangle(game_offscreen_buffer *Buffer, vec4_f32 Vertex1, vec4_f32 Vertex2, vec4_f32 Vertex3)
+{
+    mat44_f32 ProjectionTransform = GetProjectionMatrix(90.0f, (f32)Buffer->Width, (f32)Buffer->Height, 1.0f, 1000.0f);
+    mat44_f32 ScreenSpaceTransform = GetScreenSpaceTransform((f32)Buffer->Width, (f32)Buffer->Height);
+
+    vec4_f32 ProjectedVertex1 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex1));
+    vec4_f32 ProjectedVertex2 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex2));
+    vec4_f32 ProjectedVertex3 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex3));
+
+    vec4_f32 ScreenSpaceVertex1 = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex1);
+    vec4_f32 ScreenSpaceVertex2 = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex2);
+    vec4_f32 ScreenSpaceVertex3 = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex3);
+
+    DrawScreenSpaceTriangle(Buffer, ScreenSpaceVertex1, ScreenSpaceVertex2, ScreenSpaceVertex3);
+}
 
 internal star
 PlaceStarInRandomLocation(f32 StarSpread)
@@ -113,229 +233,6 @@ PlaceStarInRandomLocation(f32 StarSpread)
     Result.X = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
     Result.Y = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
     Result.Z = ((f32)RandomUnitF32() + 0.00001f)*StarSpread;
-
-    return Result;
-}
-
-internal void
-GameStateInit(game_state *State)
-{
-    srand((u32)time(0));
-
-    for (i32 StarIndex = 0;
-         StarIndex < STAR_COUNT;
-         ++StarIndex)
-    {
-        State->Stars[StarIndex] = PlaceStarInRandomLocation(STAR_SPREAD);
-    }
-}
-
-internal void
-ProcessInput(game_state *State, game_input *Input)
-{
-    // i32 MouseXDeltaRange = 700;
-    // State->PlayerAngle += -((f32)Input->MouseDX/(f32)MouseXDeltaRange) * Input->SecondsPerFrame * 20.0f;
-    // if (State->PlayerAngle >= 2*Pi32)
-    // {
-    //     State->PlayerAngle -= 2*Pi32;
-    // }
-    // else if (State->PlayerAngle < 0.0f)
-    // {
-    //     State->PlayerAngle += 2*Pi32;
-    // }
-}
-
-struct vec4_f32
-{
-    f32 X;
-    f32 Y;
-    f32 Z;
-    f32 W;
-};
-
-struct mat44_f32
-{
-    f32 Components[4][4];
-};
-
-internal mat44_f32
-GetIdentityMatrix()
-{
-    mat44_f32 Result = {0};
-
-    Result.Components[0][0] = 1.0f;
-    Result.Components[1][1] = 1.0f;
-    Result.Components[2][2] = 1.0f;
-    
-    Result.Components[3][3] = 1.0f;
-
-    return Result;
-}
-
-internal mat44_f32
-GetScreenSpaceTransform()
-{
-    mat44_f32 Result = {0};
-
-    Result.Components[0][0] = 1.0f;
-    Result.Components[1][1] = 1.0f;
-    Result.Components[2][2] = 1.0f;
-    
-    Result.Components[3][3] = 1.0f;
-
-    return Result;
-}
-    
-internal mat44_f32
-GetTranslationMatrix(f32 X, f32 Y, f32 Z)
-{
-    mat44_f32 Result = GetIdentityMatrix();;
-
-    Result.Components[0][3] = X;
-    Result.Components[1][3] = Y;
-    Result.Components[2][3] = Z;
-
-    return Result;
-}
-
-internal mat44_f32
-GetScreenSpaceTransform(f32 HalfWidth, f32 HalfHeight)
-{
-    mat44_f32 Result = {0};
-
-    Result.Components[0][0] = HalfWidth; // Scale by HalfWidth
-    Result.Components[0][3] = HalfWidth; // Offset by HalfWidth 
-    Result.Components[1][1] = -HalfHeight;
-    Result.Components[1][3] = HalfHeight;
-    // --> (0.0f,  0.0f) -> (HalfWidth, HalfHeight)
-    //     (1.0f, -1.0f) -> (Width, 0)
-    
-    Result.Components[2][2] = 1.0f;
-    Result.Components[3][3] = 1.0f;
-
-    return Result;
-}
-
-internal mat44_f32
-GetScaleMatrix(f32 X, f32 Y, f32 Z)
-{
-    mat44_f32 Result = {0};
-
-    Result.Components[0][0] = X;
-    Result.Components[1][1] = Y;
-    Result.Components[2][2] = Z;
-
-    Result.Components[3][3] = 1.0f;
-
-    return Result;
-}
-
-/*
-         |  1  0  0 |
-    X  = |  0  A -B |
-         |  0  B  A |
-
-         |  C  0  D |
-    Y  = |  0  1  0 |
-         | -D  0  C |
-
-         |  E -F  0 |
-    Z  = |  F  E  0 |
-         |  0  0  1 |
-
-    M  = X . Y . Z
-
-         |  CE      -CF       D   0 |
-    M  = |  BDE+AF  -BDF+AE  -BC  0 |
-         | -ADE+BF   ADF+BE   AC  0 |
-         |  0        0        0   1 |
-
-    where A,B are the cosine and sine of the X-axis rotation axis,
-          C,D are the cosine and sine of the Y-axis rotation axis,
-          E,F are the cosine and sine of the Z-axis rotation axis.
- */
-internal mat44_f32
-GetRotationMatrix(f32 AngleX, f32 AngleY, f32 AngleZ)
-{
-    mat44_f32 Result = {0};
-    
-    f32 CosX = cosf(AngleX);
-    f32 SinX = sinf(AngleX);
-    f32 CosY = cosf(AngleY);
-    f32 SinY = sinf(AngleY);
-    f32 CosZ = cosf(AngleZ);
-    f32 SinZ = sinf(AngleZ);
-
-    Result.Components[0][0] =  CosY*CosZ;
-    Result.Components[0][1] = -CosY*SinZ;
-    Result.Components[0][2] =  SinY;
-
-    Result.Components[1][0] =  SinX*SinY*CosZ + CosX*SinZ;
-    Result.Components[1][1] = -SinX*SinY*SinZ + CosX*CosZ;
-    Result.Components[1][2] = -SinX*CosY;
-
-    Result.Components[2][0] = -CosX*SinY*CosZ + SinX*SinZ;
-    Result.Components[2][1] =  CosX*SinY*SinZ + SinX*CosZ;
-    Result.Components[2][2] =  CosX*CosY;
-
-    Result.Components[3][3] = 1;
-
-    return Result;
-}
-
-internal mat44_f32
-GetProjectionMatrix(f32 FOV, f32 Width, f32 Height, f32 NearZ, f32 FarZ)
-{
-    mat44_f32 Result = {0};
-
-    f32 HalfFOVTan = TanF32(FOV/2.0f);
-    f32 AspectRatio = Width/Height;
-
-    Result.Components[0][0] = 1 / (AspectRatio*HalfFOVTan);
-    Result.Components[1][1] = 1 / HalfFOVTan;
-
-    Result.Components[2][2] = (-NearZ-FarZ) / (NearZ-FarZ);
-    Result.Components[2][3] = (2.0f*FarZ*NearZ) / (NearZ-FarZ);
-
-    Result.Components[3][2] = 1;
-
-    return Result;
-}
-
-internal vec4_f32
-TransformVec4F32(mat44_f32 Transform, vec4_f32 Vector)
-{
-    vec4_f32 Result = {0};
-
-    Result.X = (Transform.Components[0][0]*Vector.X +
-                Transform.Components[0][1]*Vector.Y +
-                Transform.Components[0][2]*Vector.Z +
-                Transform.Components[0][3]*Vector.W);
-    Result.Y = (Transform.Components[1][0]*Vector.X +
-                Transform.Components[1][1]*Vector.Y +
-                Transform.Components[1][2]*Vector.Z +
-                Transform.Components[1][3]*Vector.W);
-    Result.Z = (Transform.Components[2][0]*Vector.X +
-                Transform.Components[2][1]*Vector.Y +
-                Transform.Components[2][2]*Vector.Z +
-                Transform.Components[2][3]*Vector.W);
-    Result.W = (Transform.Components[3][0]*Vector.X +
-                Transform.Components[3][1]*Vector.Y +
-                Transform.Components[3][2]*Vector.Z +
-                Transform.Components[3][3]*Vector.W);
-
-    return Result;
-}
-
-internal vec4_f32
-PerspectiveDivideVec4F32(vec4_f32 Vector)
-{
-    vec4_f32 Result;
-
-    Result.X = Vector.X/Vector.W;
-    Result.Y = Vector.Y/Vector.W;
-    Result.Z = Vector.Z/Vector.W;
-    Result.W = Vector.W;
 
     return Result;
 }
@@ -380,109 +277,31 @@ UpdateAndDrawStars(game_offscreen_buffer *Buffer, game_state *State, f32 Seconds
 }
 
 internal void
-FillScanBufferRow(i32 *Scanbuffer, i32 Row, i32 MinX, i32 MaxX)
+GameStateInit(game_state *State)
 {
-    Assert(Row < 900);
-    
-    Scanbuffer[Row*2] = MinX;
-    Scanbuffer[Row*2 + 1] = MaxX;
-}
+    srand((u32)time(0));
 
-internal void
-DrawScanBufferRows(game_offscreen_buffer *Buffer, i32 *Scanbuffer, i32 MinY, i32 MaxY)
-{
-    Assert(MinY >= 0 && MinY < 900);
-    Assert(MaxY >= 0 && MaxY < 900);
-    
-    for (i32 Row = MinY;
-         Row < MaxY;
-         ++Row)
+    for (i32 StarIndex = 0;
+         StarIndex < STAR_COUNT;
+         ++StarIndex)
     {
-        i32 MinX = Scanbuffer[Row*2];
-        i32 MaxX = Scanbuffer[Row*2 + 1];
-        
-        for (i32 Column = MinX;
-             Column < MaxX;
-             ++Column)
-        {
-            DrawPixel(Buffer, Column, Row, 0xFFFFFFFF);
-        }
+        State->Stars[StarIndex] = PlaceStarInRandomLocation(STAR_SPREAD);
     }
 }
 
 internal void
-ScanConvertLine(i32 *Scanbuffer, vec4_f32 VertexMinY, vec4_f32 VertexMaxY, i32 WhichSide)
+ProcessInput(game_state *State, game_input *Input)
 {
-    i32 StartY = TruncateF32ToI32(VertexMinY.Y);
-    i32 EndY = TruncateF32ToI32(VertexMaxY.Y);
-    i32 StartX = TruncateF32ToI32(VertexMinY.X);
-    i32 EndX = TruncateF32ToI32(VertexMaxY.X);
-
-    i32 dY = EndY - StartY;
-    i32 dX = EndX - StartX;
-
-    if (dY <= 0)
-    {
-        return;
-    }
-
-    f32 StepX = (f32)dX/(f32)dY;
-    f32 CursorX = (f32)StartX;
-
-    for (i32 Row = StartY;
-         Row < EndY;
-         ++Row)
-    {
-        Scanbuffer[Row*2 + WhichSide] = (i32)CursorX;
-        CursorX += StepX;
-    }
-}
-
-internal void
-ScanConvertSortedTriangle(i32 *Scanbuffer, vec4_f32 VertexMinY, vec4_f32 VertexMidY, vec4_f32 VertexMaxY, i32 Handedness)
-{
-    ScanConvertLine(Scanbuffer, VertexMinY, VertexMaxY, 0 + Handedness);
-    ScanConvertLine(Scanbuffer, VertexMinY, VertexMidY, 1 - Handedness);
-    ScanConvertLine(Scanbuffer, VertexMidY, VertexMaxY, 1 - Handedness);
-}
-
-internal void
-DrawTriangle(game_offscreen_buffer *Buffer, i32 *Scanbuffer, vec4_f32 Vertex1, vec4_f32 Vertex2, vec4_f32 Vertex3)
-{
-    mat44_f32 ProjectionTransform = GetProjectionMatrix(90.0f, (f32)Buffer->Width, (f32)Buffer->Height, 1.0f, 1000.0f);
-    mat44_f32 ScreenSpaceTransform = GetScreenSpaceTransform((f32)Buffer->Width/2.0f, (f32)Buffer->Height/2.0f);
-
-    vec4_f32 ProjectedVertex1 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex1));
-    vec4_f32 ProjectedVertex2 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex2));
-    vec4_f32 ProjectedVertex3 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex3));
-
-    vec4_f32 VertexMinY = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex1);
-    vec4_f32 VertexMidY = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex2);
-    vec4_f32 VertexMaxY = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex3);
-
-    if (VertexMaxY.Y < VertexMidY.Y)
-    {
-        vec4_f32 Temp = VertexMaxY;
-        VertexMaxY = VertexMidY;
-        VertexMidY = Temp;
-    }
-    if (VertexMidY.Y < VertexMinY.Y)
-    {
-        vec4_f32 Temp = VertexMidY;
-        VertexMidY = VertexMinY;
-        VertexMinY = Temp;
-    }
-    if (VertexMaxY.Y < VertexMinY.Y)
-    {
-        vec4_f32 Temp = VertexMaxY;
-        VertexMaxY = VertexMinY;
-        VertexMinY = Temp;
-    }
-
-    i32 Handedness = ((VertexMidY.X > VertexMaxY.X) ? 0 : 1);
-    
-    ScanConvertSortedTriangle(Scanbuffer, VertexMinY, VertexMidY, VertexMaxY, Handedness);
-    DrawScanBufferRows(Buffer, Scanbuffer, TruncateF32ToI32(VertexMinY.Y), TruncateF32ToI32(VertexMaxY.Y));
+    // i32 MouseXDeltaRange = 700;
+    // State->PlayerAngle += -((f32)Input->MouseDX/(f32)MouseXDeltaRange) * Input->SecondsPerFrame * 20.0f;
+    // if (State->PlayerAngle >= 2*Pi32)
+    // {
+    //     State->PlayerAngle -= 2*Pi32;
+    // }
+    // else if (State->PlayerAngle < 0.0f)
+    // {
+    //     State->PlayerAngle += 2*Pi32;
+    // }
 }
 
 internal void
@@ -492,11 +311,15 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
     
     DrawRectangle(Buffer, 0.0f, 0.0f, (f32)Buffer->Width, (f32)Buffer->Height, 0xFF000000, 0xFF000000);
 
-    int Scanbuffer[1800] = {0};
+    // vec4_f32 Vertex1 = { 800.0f,   300.0f,     1.0f, 1.0f };
+    // vec4_f32 Vertex2 = { 0.0f,   450.0f,   1.0f, 1.0f };
+    // vec4_f32 Vertex3 = { 1600.0f,  460.0f,   1.0f, 1.0f };
 
-    vec4_f32 Vertex1 = {  0.0f, -1.0f, 1.0f, 1.0f };
-    vec4_f32 Vertex2 = { -1.0f,  1.0f, 1.0f, 1.0f };
-    vec4_f32 Vertex3 = {  1.0f,  1.0f, 1.0f, 1.0f };
+    // DrawScreenSpaceTriangle(Buffer, Scanbuffer, Vertex1, Vertex2, Vertex3);
 
-    DrawTriangle(Buffer, Scanbuffer, Vertex1, Vertex2, Vertex3);
+    vec4_f32 Vertex1 = {  0.0f,  1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex2 = { -1.0f, -1.0f, 1.0f, 1.0f };
+    vec4_f32 Vertex3 = {  1.0f, -1.0f, 1.0f, 1.0f };
+
+    Draw3DTriangle(Buffer, Vertex1, Vertex2, Vertex3);
 }
