@@ -58,6 +58,15 @@ struct game_input
     bool32 Down;
     bool32 Left;
     bool32 Right;
+
+    bool32 IncreaseTriX;
+    bool32 DecreaseTriX;
+    
+    bool32 IncreaseTriY;
+    bool32 DecreaseTriY;
+    
+    bool32 IncreaseTriZ;
+    bool32 DecreaseTriZ;
 };
 
 struct bitmap
@@ -107,6 +116,18 @@ struct vertex
 struct game_state
 {
     star Stars[STAR_COUNT];
+
+    f32 V1_X;
+    f32 V1_Y;
+    f32 V1_Z;
+
+    f32 V2_X;
+    f32 V2_Y;
+    f32 V2_Z;
+
+    f32 V3_X;
+    f32 V3_Y;
+    f32 V3_Z;
 };
 
 internal void

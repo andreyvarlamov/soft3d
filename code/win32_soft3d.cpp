@@ -174,44 +174,69 @@ Win32ProcessPendingMessage(game_input *InputData)
                 {
                     switch (VKCode)
                     {
-                        case VK_UP:
-                        {
-                            InputData->Up = IsDown;
-                        } break;
+                        // case VK_UP:
+                        // {
+                        //     InputData->Up = IsDown;
+                        // } break;
 
-                        case VK_DOWN:
-                        {
-                            InputData->Down = IsDown;
-                        } break;
+                        // case VK_DOWN:
+                        // {
+                        //     InputData->Down = IsDown;
+                        // } break;
 
-                        case VK_LEFT:
-                        {
-                            InputData->Left = IsDown;
-                        } break;
+                        // case VK_LEFT:
+                        // {
+                        //     InputData->Left = IsDown;
+                        // } break;
 
-                        case VK_RIGHT:
-                        {
-                            InputData->Right = IsDown;
-                        } break;
+                        // case VK_RIGHT:
+                        // {
+                        //     InputData->Right = IsDown;
+                        // } break;
 
-                        case 'W':
-                        {
-                            InputData->Forward = IsDown;
-                        } break;
+                        // case 'W':
+                        // {
+                        //     InputData->Forward = IsDown;
+                        // } break;
 
+                        // case 'A':
+                        // {
+                        //     InputData->StrafeLeft = IsDown;
+                        // } break;
+
+                        // case 'S':
+                        // {
+                        //     InputData->Back = IsDown;
+                        // } break;
+
+                        // case 'D':
+                        // {
+                        //     InputData->StrafeRight = IsDown;
+                        // } break;
+
+                        case 'Q':
+                        {
+                            InputData->IncreaseTriX = IsDown;
+                        } break;
                         case 'A':
                         {
-                            InputData->StrafeLeft = IsDown;
+                            InputData->DecreaseTriX = IsDown;
                         } break;
-
+                        case 'W':
+                        {
+                            InputData->IncreaseTriY = IsDown;
+                        } break;
                         case 'S':
                         {
-                            InputData->Back = IsDown;
+                            InputData->DecreaseTriY = IsDown;
                         } break;
-
+                        case 'E':
+                        {
+                            InputData->IncreaseTriZ = IsDown;
+                        } break;
                         case 'D':
                         {
-                            InputData->StrafeRight = IsDown;
+                            InputData->DecreaseTriZ = IsDown;
                         } break;
 
                         case VK_F4:
@@ -400,7 +425,7 @@ WinMain(HINSTANCE Instance,
                 ReleaseDC(GlobalWindow, DeviceContext);
 
                 f32 WorkPercent  = WorkSecondsElapsed / SecondsElapsedForFrame * 100.0f;
-                if (WorkPercent > 80.0f)
+                if (WorkPercent > 0.0f)
                 {
                     
                     DEBUGPrintString("Frame=%.2fms; Work=%.2fms(%.0f%%)\n",

@@ -260,10 +260,10 @@ GetProjectionMatrix(f32 FOV, f32 Width, f32 Height, f32 NearZ, f32 FarZ)
     Result.Components[0][0] = 1 / (AspectRatio*HalfFOVTan);
     Result.Components[1][1] = 1 / HalfFOVTan;
 
-    Result.Components[2][2] = (-NearZ-FarZ) / (NearZ-FarZ);
+    Result.Components[2][2] = -(FarZ+NearZ) / (FarZ-NearZ);
     Result.Components[2][3] = (2.0f*FarZ*NearZ) / (NearZ-FarZ);
 
-    Result.Components[3][2] = 1;
+    Result.Components[3][2] = -1;
 
     return Result;
 }
@@ -276,7 +276,7 @@ PerspectiveDivideVec4F32(vec4_f32 Vector)
     Result.X = Vector.X/Vector.W;
     Result.Y = Vector.Y/Vector.W;
     Result.Z = Vector.Z/Vector.W;
-    Result.W = Vector.W;
+    Result.W = 1.0f;
 
     return Result;
 }

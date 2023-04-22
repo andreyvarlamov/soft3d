@@ -134,34 +134,44 @@ DrawBetweenVerticalLines(game_offscreen_buffer *Buffer,
                            EndLineB.Y - EndLineB.X/InvSlopeB);
     f32 HorizontalOffsetB = (IsVerticalB ? StartLineB.X : 0.0f);
     
-
+    if (RowStart < 0) RowStart = 0;
+    if (RowEnd > Buffer->Height) RowEnd = Buffer->Height;
+    
     for (i32 RowIndex = RowStart;
          RowIndex < RowEnd;
          ++RowIndex)
     {
-        
-        i32 PointA = TruncateF32ToI32(GetLineXForY((f32)RowIndex, InvSlopeA, VerticalOffsetA, HorizontalOffsetA));
-        i32 PointB = TruncateF32ToI32(GetLineXForY((f32)RowIndex, InvSlopeB, VerticalOffsetB, HorizontalOffsetB));
-
-        i32 LeftBoundary;
-        i32 RightBoundary;
-
-        if (PointA < PointB)
+        if (RowIndex >= 0 && RowIndex < Buffer->Height)
         {
-            LeftBoundary = PointA;
-            RightBoundary = PointB;
-        }
-        else
-        {
-            LeftBoundary = PointB;
-            RightBoundary = PointA;
-        }
+            i32 PointA = TruncateF32ToI32(GetLineXForY((f32)RowIndex, InvSlopeA, VerticalOffsetA, HorizontalOffsetA));
+            i32 PointB = TruncateF32ToI32(GetLineXForY((f32)RowIndex, InvSlopeB, VerticalOffsetB, HorizontalOffsetB));
+            
+            i32 LeftBoundary;
+            i32 RightBoundary;
+            
+            if (PointA < PointB)
+            {
+                LeftBoundary = PointA;
+                RightBoundary = PointB;
+            }
+            else
+            {
+                LeftBoundary = PointB;
+                RightBoundary = PointA;
+            }
 
-        for (i32 ColumnIndex = LeftBoundary;
-             ColumnIndex <= RightBoundary;
-             ++ColumnIndex)
-        {
-            DrawPixel(Buffer, ColumnIndex, RowIndex, 0xFFFFFFFF);
+            if (LeftBoundary < 0) LeftBoundary = 0;
+            if (RightBoundary >= Buffer->Width ) RightBoundary = Buffer->Width - 1;
+            
+            for (i32 ColumnIndex = LeftBoundary;
+                 ColumnIndex <= RightBoundary;
+                 ++ColumnIndex)
+            {
+                if (ColumnIndex >= 0 && ColumnIndex < Buffer->Width)
+                {
+                    DrawPixel(Buffer, ColumnIndex, RowIndex, 0xFFFFFFFF);
+                }
+            }
         }
     }
 }
@@ -214,13 +224,17 @@ Draw3DTriangle(game_offscreen_buffer *Buffer, vec4_f32 Vertex1, vec4_f32 Vertex2
     mat44_f32 ProjectionTransform = GetProjectionMatrix(90.0f, (f32)Buffer->Width, (f32)Buffer->Height, 1.0f, 1000.0f);
     mat44_f32 ScreenSpaceTransform = GetScreenSpaceTransform((f32)Buffer->Width, (f32)Buffer->Height);
 
-    vec4_f32 ProjectedVertex1 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex1));
-    vec4_f32 ProjectedVertex2 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex2));
-    vec4_f32 ProjectedVertex3 = PerspectiveDivideVec4F32(TransformVec4F32(ProjectionTransform, Vertex3));
+    vec4_f32 ProjectedVertex1 = TransformVec4F32(ProjectionTransform, Vertex1);
+    vec4_f32 ProjectedVertex2 = TransformVec4F32(ProjectionTransform, Vertex2);
+    vec4_f32 ProjectedVertex3 = TransformVec4F32(ProjectionTransform, Vertex3);
 
-    vec4_f32 ScreenSpaceVertex1 = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex1);
-    vec4_f32 ScreenSpaceVertex2 = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex2);
-    vec4_f32 ScreenSpaceVertex3 = TransformVec4F32(ScreenSpaceTransform, ProjectedVertex3);
+    vec4_f32 PerspectiveVertex1 = PerspectiveDivideVec4F32(ProjectedVertex1);
+    vec4_f32 PerspectiveVertex2 = PerspectiveDivideVec4F32(ProjectedVertex2);
+    vec4_f32 PerspectiveVertex3 = PerspectiveDivideVec4F32(ProjectedVertex3);
+
+    vec4_f32 ScreenSpaceVertex1 = TransformVec4F32(ScreenSpaceTransform, PerspectiveVertex1);
+    vec4_f32 ScreenSpaceVertex2 = TransformVec4F32(ScreenSpaceTransform, PerspectiveVertex2);
+    vec4_f32 ScreenSpaceVertex3 = TransformVec4F32(ScreenSpaceTransform, PerspectiveVertex3);
 
     DrawScreenSpaceTriangle(Buffer, ScreenSpaceVertex1, ScreenSpaceVertex2, ScreenSpaceVertex3);
 }
@@ -287,6 +301,19 @@ GameStateInit(game_state *State)
     {
         State->Stars[StarIndex] = PlaceStarInRandomLocation(STAR_SPREAD);
     }
+
+    State->V1_X = 0.0f;
+    State->V1_Y = 1.0f;
+    State->V1_Z = -1.0f;
+
+    State->V2_X = -1.0f;
+    State->V2_Y = -1.0f;
+    State->V2_Z = -1.0f;
+
+    State->V3_X = 1.0f;
+    State->V3_Y = -1.0f;
+    State->V3_Z = -1.0f;
+
 }
 
 internal void
@@ -294,7 +321,7 @@ ProcessInput(game_state *State, game_input *Input)
 {
     // i32 MouseXDeltaRange = 700;
     // State->PlayerAngle += -((f32)Input->MouseDX/(f32)MouseXDeltaRange) * Input->SecondsPerFrame * 20.0f;
-    // if (State->PlayerAngle >= 2*Pi32)
+    // if (State->PlayerAngle >= 2*Pi32)\
     // {
     //     State->PlayerAngle -= 2*Pi32;
     // }
@@ -302,6 +329,47 @@ ProcessInput(game_state *State, game_input *Input)
     // {
     //     State->PlayerAngle += 2*Pi32;
     // }
+
+    f32 Delta = Input->SecondsPerFrame * 0.5f;
+    
+    if (Input->IncreaseTriX)
+    {
+        State->V1_X += Delta;
+        State->V2_X += Delta;
+        State->V3_X += Delta;
+    }
+    else if (Input->DecreaseTriX)
+    {
+        State->V1_X -= Delta;
+        State->V2_X -= Delta;
+        State->V3_X -= Delta;
+    }
+    
+    if (Input->IncreaseTriY)
+    {
+        State->V1_Y += Delta;
+        State->V2_Y += Delta;
+        State->V3_Y += Delta;
+    }
+    else if (Input->DecreaseTriY)
+    {
+        State->V1_Y -= Delta;
+        State->V2_Y -= Delta;
+        State->V3_Y -= Delta;
+    }
+    
+    if (Input->IncreaseTriZ)
+    {
+        State->V1_Z += Delta;
+        State->V2_Z += Delta;
+        State->V3_Z += Delta;
+    }
+    else if (Input->DecreaseTriZ)
+    {
+        State->V1_Z -= Delta;
+        State->V2_Z -= Delta;
+        State->V3_Z -= Delta;
+    }
 }
 
 internal void
@@ -317,9 +385,16 @@ GameUpdateAndRender(game_state *State, game_input *Input, game_offscreen_buffer 
 
     // DrawScreenSpaceTriangle(Buffer, Scanbuffer, Vertex1, Vertex2, Vertex3);
 
-    vec4_f32 Vertex1 = {  0.0f,  1.0f, 1.0f, 1.0f };
-    vec4_f32 Vertex2 = { -1.0f, -1.0f, 1.0f, 1.0f };
-    vec4_f32 Vertex3 = {  1.0f, -1.0f, 1.0f, 1.0f };
+    
+
+    vec4_f32 Vertex1 = { State->V1_X, State->V1_Y, State->V1_Z, 1.0f };
+    vec4_f32 Vertex2 = { State->V2_X, State->V2_Y, State->V2_Z, 1.0f };
+    vec4_f32 Vertex3 = { State->V3_X, State->V3_Y, State->V3_Z, 1.0f };
 
     Draw3DTriangle(Buffer, Vertex1, Vertex2, Vertex3);
+
+    DEBUGPrintString("%0.2f, %0.2f, %0.2f; %0.2f, %0.2f, %0.2f; %0.2f, %0.2f, %0.2f",
+                     State->V1_X, State->V1_Y, State->V1_Z,
+                     State->V2_X, State->V2_Y, State->V2_Z,
+                     State->V3_X, State->V3_Y, State->V3_Z);
 }
