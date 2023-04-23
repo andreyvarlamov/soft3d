@@ -174,69 +174,44 @@ Win32ProcessPendingMessage(game_input *InputData)
                 {
                     switch (VKCode)
                     {
-                        // case VK_UP:
-                        // {
-                        //     InputData->Up = IsDown;
-                        // } break;
-
-                        // case VK_DOWN:
-                        // {
-                        //     InputData->Down = IsDown;
-                        // } break;
-
-                        // case VK_LEFT:
-                        // {
-                        //     InputData->Left = IsDown;
-                        // } break;
-
-                        // case VK_RIGHT:
-                        // {
-                        //     InputData->Right = IsDown;
-                        // } break;
-
-                        // case 'W':
-                        // {
-                        //     InputData->Forward = IsDown;
-                        // } break;
-
-                        // case 'A':
-                        // {
-                        //     InputData->StrafeLeft = IsDown;
-                        // } break;
-
-                        // case 'S':
-                        // {
-                        //     InputData->Back = IsDown;
-                        // } break;
-
-                        // case 'D':
-                        // {
-                        //     InputData->StrafeRight = IsDown;
-                        // } break;
-
-                        case 'Q':
+                        case VK_UP:
                         {
-                            InputData->IncreaseTriX = IsDown;
+                            InputData->Up = IsDown;
                         } break;
-                        case 'A':
+
+                        case VK_DOWN:
                         {
-                            InputData->DecreaseTriX = IsDown;
+                            InputData->Down = IsDown;
                         } break;
+
+                        case VK_LEFT:
+                        {
+                            InputData->Left = IsDown;
+                        } break;
+
+                        case VK_RIGHT:
+                        {
+                            InputData->Right = IsDown;
+                        } break;
+
                         case 'W':
                         {
-                            InputData->IncreaseTriY = IsDown;
+                            InputData->Forward = IsDown;
                         } break;
+
+                        case 'A':
+                        {
+                            InputData->StrafeLeft = IsDown;
+                        } break;
+
                         case 'S':
                         {
-                            InputData->DecreaseTriY = IsDown;
+                            InputData->Back = IsDown;
                         } break;
-                        case 'E':
-                        {
-                            InputData->IncreaseTriZ = IsDown;
-                        } break;
+
                         case 'D':
                         {
-                            InputData->DecreaseTriZ = IsDown;
+                            InputData->StrafeRight = IsDown;
                         } break;
 
                         case VK_F4:

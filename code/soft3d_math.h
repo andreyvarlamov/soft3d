@@ -210,7 +210,7 @@ GetRotationMatrix(f32 AngleX, f32 AngleY, f32 AngleZ)
     f32 CosY = CosF32(AngleY);
     f32 SinY = SinF32(AngleY);
     f32 CosZ = CosF32(AngleZ);
-    f32 SinZ = CosF32(AngleZ);
+    f32 SinZ = SinF32(AngleZ);
 
     Result.Components[0][0] =  CosY*CosZ;
     Result.Components[0][1] = -CosY*SinZ;
@@ -225,6 +225,30 @@ GetRotationMatrix(f32 AngleX, f32 AngleY, f32 AngleZ)
     Result.Components[2][2] =  CosX*CosY;
 
     Result.Components[3][3] = 1;
+
+    /* NOTE: Just X Rotation */
+    /* Result.Components[0][0] = 1; */
+    /* Result.Components[1][1] = CosX; */
+    /* Result.Components[1][2] = -SinX; */
+    /* Result.Components[2][1] = SinX; */
+    /* Result.Components[2][2] = CosX; */
+    /* Result.Components[3][3] = 1; */
+    
+    /* NOTE: Just Y Rotation */
+    /* Result.Components[0][0] = CosY; */
+    /* Result.Components[0][2] = SinY; */
+    /* Result.Components[1][1] = 1; */
+    /* Result.Components[2][0] = -SinY; */
+    /* Result.Components[2][2] = CosY; */
+    /* Result.Components[3][3] = 1; */
+
+    /* NOTE: Just Z Rotation */
+    /* Result.Components[0][0] = CosZ; */
+    /* Result.Components[0][1] = -SinZ; */
+    /* Result.Components[1][0] = SinZ; */
+    /* Result.Components[1][1] = CosZ; */
+    /* Result.Components[2][2] = 1; */
+    /* Result.Components[3][3] = 1; */
 
     return Result;
 }

@@ -58,15 +58,6 @@ struct game_input
     bool32 Down;
     bool32 Left;
     bool32 Right;
-
-    bool32 IncreaseTriX;
-    bool32 DecreaseTriX;
-    
-    bool32 IncreaseTriY;
-    bool32 DecreaseTriY;
-    
-    bool32 IncreaseTriZ;
-    bool32 DecreaseTriZ;
 };
 
 struct bitmap
@@ -128,6 +119,10 @@ struct game_state
     f32 V3_X;
     f32 V3_Y;
     f32 V3_Z;
+
+    f32 RotationX;
+    f32 RotationY;
+    f32 RotationZ;
 };
 
 internal void
