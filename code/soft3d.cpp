@@ -28,6 +28,57 @@ DrawPixel(game_offscreen_buffer *Buffer,
     Pixels[PixelY*Buffer->Width + PixelX] = Color;
 }
 
+internal star
+PlaceStarInRandomLocation(f32 StarSpread)
+{
+    star Result = {0};
+    
+    Result.X = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
+    Result.Y = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
+    Result.Z = ((f32)RandomUnitF32() + 0.00001f)*StarSpread;
+
+    return Result;
+}
+
+internal void
+UpdateAndDrawStars(game_offscreen_buffer *Buffer, game_state *State, f32 SecondsPerFrame)
+{
+    f32 StarSpeed = 20.0f;
+    
+    f32 BufferCenterX = (f32)Buffer->Width/2.0f;
+    f32 BufferCenterY = (f32)Buffer->Height/2.0f;
+    f32 FOV = Pi32/2.0f;
+    f32 HalfFOVTan = tanf(FOV/2.0f);
+    
+    for (i32 StarIndex = 0;
+         StarIndex < STAR_COUNT;
+         ++StarIndex)
+    {
+        star * CurrentStar = &State->Stars[StarIndex];
+        CurrentStar->Z -= SecondsPerFrame*StarSpeed;
+
+        if (CurrentStar->Z <= 0)
+        {
+            *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
+        }
+
+        f32 PerspectiveStarX = CurrentStar->X / (HalfFOVTan*CurrentStar->Z);
+        f32 PerspectiveStarY = CurrentStar->Y / (HalfFOVTan*CurrentStar->Z);
+        i32 DrawX = TruncateF32ToI32(PerspectiveStarX*BufferCenterX + BufferCenterX);
+        i32 DrawY = TruncateF32ToI32(PerspectiveStarY*BufferCenterY + BufferCenterY);
+
+        if (DrawX >= 0 && DrawX < Buffer->Width &&
+            DrawY >= 0 && DrawY < Buffer->Height)
+        {
+            DrawPixel(Buffer, DrawX, DrawY, 0xFFFFFFFF);
+        }
+        else
+        {
+            *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
+        }
+    }
+}
+
 internal void
 DrawLine(game_offscreen_buffer *Buffer,
          f32 RealStartX, f32 RealStartY,
@@ -240,57 +291,6 @@ Draw3DTriangle(game_offscreen_buffer *Buffer, vec4_f32 Vertex1, vec4_f32 Vertex2
     DrawScreenSpaceTriangle(Buffer, ScreenSpaceVertex1, ScreenSpaceVertex2, ScreenSpaceVertex3);
 }
 
-internal star
-PlaceStarInRandomLocation(f32 StarSpread)
-{
-    star Result = {0};
-    
-    Result.X = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
-    Result.Y = 2.0f * ((f32)RandomUnitF32() - 0.5f)*StarSpread;
-    Result.Z = ((f32)RandomUnitF32() + 0.00001f)*StarSpread;
-
-    return Result;
-}
-
-internal void
-UpdateAndDrawStars(game_offscreen_buffer *Buffer, game_state *State, f32 SecondsPerFrame)
-{
-    f32 StarSpeed = 20.0f;
-    
-    f32 BufferCenterX = (f32)Buffer->Width/2.0f;
-    f32 BufferCenterY = (f32)Buffer->Height/2.0f;
-    f32 FOV = Pi32/2.0f;
-    f32 HalfFOVTan = tanf(FOV/2.0f);
-    
-    for (i32 StarIndex = 0;
-         StarIndex < STAR_COUNT;
-         ++StarIndex)
-    {
-        star * CurrentStar = &State->Stars[StarIndex];
-        CurrentStar->Z -= SecondsPerFrame*StarSpeed;
-
-        if (CurrentStar->Z <= 0)
-        {
-            *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
-        }
-
-        f32 PerspectiveStarX = CurrentStar->X / (HalfFOVTan*CurrentStar->Z);
-        f32 PerspectiveStarY = CurrentStar->Y / (HalfFOVTan*CurrentStar->Z);
-        i32 DrawX = TruncateF32ToI32(PerspectiveStarX*BufferCenterX + BufferCenterX);
-        i32 DrawY = TruncateF32ToI32(PerspectiveStarY*BufferCenterY + BufferCenterY);
-
-        if (DrawX >= 0 && DrawX < Buffer->Width &&
-            DrawY >= 0 && DrawY < Buffer->Height)
-        {
-            DrawPixel(Buffer, DrawX, DrawY, 0xFFFFFFFF);
-        }
-        else
-        {
-            *CurrentStar = PlaceStarInRandomLocation(STAR_SPREAD);
-        }
-    }
-}
-
 internal void
 GameStateInit(game_state *State)
 {
@@ -331,7 +331,7 @@ ProcessInput(game_state *State, game_input *Input)
     //     State->PlayerAngle += 2*Pi32;
     // }
 
-    f32 RotationDelta = 0.6f*Input->SecondsPerFrame;
+    f32 RotationDelta = 1.0f*Input->SecondsPerFrame;
     if (Input->Up)
     {
         State->RotationX += RotationDelta;

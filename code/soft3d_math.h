@@ -260,7 +260,7 @@ GetRotationMatrix(f32 AngleX, f32 AngleY, f32 AngleZ)
  */
 
 inline f32
-GetLineXForY(f32 Y, f32 InvSlope, f32 VerticalOffset, f32 HorizontalOffset)
+GetLineXForY(f32 Y, f32 InvSlope, f32 YIntercept, f32 HorizontalOffset)
 {
     // NOTE: y = mx + b -> x = (y - b) / m
     // Vertical line: x = a
@@ -269,7 +269,7 @@ GetLineXForY(f32 Y, f32 InvSlope, f32 VerticalOffset, f32 HorizontalOffset)
     bool32 IsVerticalLine = AreEqualF32(InvSlope, 0.0f);
     HorizontalOffset = IsVerticalLine ? HorizontalOffset : 0.0f;
     
-    f32 Result = InvSlope*(Y - VerticalOffset) + HorizontalOffset;
+    f32 Result = InvSlope*(Y - YIntercept) + HorizontalOffset;
     return Result;
 }
 
